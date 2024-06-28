@@ -1,4 +1,4 @@
-# American_Sign_Language_Prediction_App
+# American_Sign_Language_Detection_App
 
 ## Overview
 
