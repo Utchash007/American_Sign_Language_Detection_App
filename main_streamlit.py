@@ -20,17 +20,9 @@ LETTER_LABELS = [
 
 # ICE config: keep a reliable STUN and TURN if you have one.
 RTC_CONFIGURATION = RTCConfiguration(
-    {
-        "iceServers": [
-            {"urls": ["stun:stun.l.google.com:19302"]},
-            {
-                "urls": ["turn:numb.viagenie.ca"],
-                "username": "webrtc@live.com",
-                "credential": "muazkh"
-            }
-        ]
-    }
+    {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
 )
+
 
 class ASLTransformer(VideoTransformerBase):
     def __init__(self):
