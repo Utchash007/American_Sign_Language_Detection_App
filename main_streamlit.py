@@ -7,8 +7,8 @@ import av
 from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, RTCConfiguration, WebRtcMode
 import tensorflow as tf  
 
-st.set_page_config(page_title="ASL Real-time (webrtc + TensorFlow Lite)", layout="centered")
-st.title("ASL Recognition — Real-time (streamlit-webrtc + TensorFlow Lite)")
+st.set_page_config(page_title="ASL Real-time", layout="centered")
+st.title("ASL Recognition — Real-time")
 
 
 MODEL_PATH = "smnist_X5_lite.tflite"
