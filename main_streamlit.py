@@ -5,12 +5,12 @@ import mediapipe as mp
 import numpy as np
 import av
 from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, RTCConfiguration, WebRtcMode
-import tensorflow as tf  # for TFLite interpreter
+import tensorflow as tf  
 
 st.set_page_config(page_title="ASL Real-time (webrtc + TensorFlow Lite)", layout="centered")
 st.title("ASL Recognition — Real-time (streamlit-webrtc + TensorFlow Lite)")
 
-# Use your TFLite model file here:
+
 MODEL_PATH = "smnist_X5_lite.tflite"
 
 LETTER_LABELS = [
@@ -127,7 +127,7 @@ class ASLTransformer(VideoTransformerBase):
 
                 label, conf = self.predict(proc)
 
-                # Draw bounding box and label
+                
                 cv2.rectangle(img, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
                 label_text = f"{label} ({conf:.2f})"
                 text_pos = (x_min, max(20, y_min - 10))
@@ -142,9 +142,9 @@ st.write("Click **Start** to open webcam (browser will ask for permission).")
 
 webrtc_ctx = webrtc_streamer(
     key="aslr-webrtc-tf",
-    mode=WebRtcMode.SENDRECV,  # <-- enum, NOT string
+    mode=WebRtcMode.SENDRECV,  
     rtc_configuration=RTC_CONFIGURATION,
     media_stream_constraints={"video": True, "audio": False},
-    #video_transformer_factory=ASLTransformer,
+    video_transformer_factory=ASLTransformer,
     async_processing=True,
 )
