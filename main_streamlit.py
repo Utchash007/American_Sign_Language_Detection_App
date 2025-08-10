@@ -142,7 +142,7 @@ try:
         mode=WebRtcMode.SENDRECV,
         rtc_configuration=RTC_CONFIGURATION,
         media_stream_constraints={"video": True, "audio": False},
-        video_transformer_factory=ASLTransformer,
+        video_processor_factory=ASLTransformer,
         async_processing=True,
     )
 except Exception as e:
