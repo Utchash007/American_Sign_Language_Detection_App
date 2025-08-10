@@ -4,4 +4,5 @@ opencv-python-headless
 mediapipe
 numpy
 av
+aioice
 tensorflow
