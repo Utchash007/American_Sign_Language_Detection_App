@@ -4,16 +4,15 @@ import cv2
 import mediapipe as mp
 import numpy as np
 import av
-from streamlit_webrtc import webrtc_streamer, WebRtcMode, RTCConfiguration
+from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, RTCConfiguration
 
-# TensorFlow import
-import tensorflow as tf
+import tensorflow as tf  # full TF imported for TFLite interpreter
 
-st.set_page_config(page_title="ASL Real-time (webrtc + TensorFlow)", layout="centered")
-st.title("ASL Recognition — Real-time (streamlit-webrtc + TensorFlow)")
+st.set_page_config(page_title="ASL Real-time (webrtc + TensorFlow Lite)", layout="centered")
+st.title("ASL Recognition — Real-time (streamlit-webrtc + TensorFlow Lite)")
 
-# Model file path - update this to your actual model
-MODEL_PATH = "asl_model.h5"
+# Use your TFLite model file here:
+MODEL_PATH = "smnist_X5_lite.tflite"
 
 LETTER_LABELS = [
     'A','B','C','D','E','F','G','H','I','K','L','M','N','O',
@@ -24,9 +23,10 @@ RTC_CONFIGURATION = RTCConfiguration(
     {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
 )
 
-class ASLTransformer:
+class ASLTransformer(VideoTransformerBase):
     def __init__(self):
         self.model_type = None
+
         if MODEL_PATH.lower().endswith(".tflite"):
             self.interpreter = tf.lite.Interpreter(model_path=MODEL_PATH)
             self.interpreter.allocate_tensors()
@@ -35,14 +35,10 @@ class ASLTransformer:
             self.model_type = "tflite"
             st.info("Using TFLite Interpreter for inference.")
         else:
-            try:
-                self.keras_model = tf.keras.models.load_model(MODEL_PATH)
-                self.model_type = "keras"
-                st.info("Loaded Keras/TensorFlow model for inference.")
-            except Exception as e:
-                st.error(f"Failed to load model at {MODEL_PATH}: {e}")
-                raise
+            st.error("This code only supports TFLite model for now.")
+            raise RuntimeError("Only TFLite model is supported in this code.")
 
+        # Initialize MediaPipe Hands
         self.mp_hands = mp.solutions.hands
         self.hands = self.mp_hands.Hands(
             static_image_mode=False,
@@ -61,28 +57,19 @@ class ASLTransformer:
         except Exception:
             return None
         proc = resized.astype(np.float32) / 255.0
-        proc = np.expand_dims(proc, axis=0)
-        proc = np.expand_dims(proc, axis=-1)
+        proc = np.expand_dims(proc, axis=0)    # (1,28,28)
+        proc = np.expand_dims(proc, axis=-1)   # (1,28,28,1)
         return proc
 
     def predict(self, proc):
         if proc is None:
             return "?", 0.0
+
         if self.model_type == "tflite":
             try:
                 self.interpreter.set_tensor(self.input_index, proc)
                 self.interpreter.invoke()
                 out = self.interpreter.get_tensor(self.output_index)[0]
-                idx = int(np.argmax(out))
-                label = LETTER_LABELS[idx] if idx < len(LETTER_LABELS) else "?"
-                conf = float(np.max(out))
-                return label, conf
-            except Exception:
-                return "?", 0.0
-        elif self.model_type == "keras":
-            try:
-                preds = self.keras_model.predict(proc, verbose=0)
-                out = preds[0]
                 idx = int(np.argmax(out))
                 label = LETTER_LABELS[idx] if idx < len(LETTER_LABELS) else "?"
                 conf = float(np.max(out))
@@ -120,6 +107,7 @@ class ASLTransformer:
 
                 cropped = orig[y_min:y_max, x_min:x_max]
                 proc = self.preprocess_crop(cropped)
+
                 label, conf = self.predict(proc)
 
                 cv2.rectangle(img, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
@@ -136,7 +124,7 @@ st.write("Click **Start** to open webcam (browser will ask for permission).")
 
 webrtc_ctx = webrtc_streamer(
     key="aslr-webrtc-tf",
-    mode=WebRtcMode.SENDRECV,
+    mode="sendrecv",
     rtc_configuration=RTC_CONFIGURATION,
     media_stream_constraints={"video": True, "audio": False},
     video_transformer_factory=ASLTransformer,
