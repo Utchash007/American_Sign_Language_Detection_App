@@ -10,7 +10,6 @@ import tensorflow as tf
 st.set_page_config(page_title="ASL Real-time", layout="centered")
 st.title("ASL Recognition — Real-time")
 
-
 MODEL_PATH = "smnist_X5_lite.tflite"
 
 LETTER_LABELS = [
@@ -65,7 +64,6 @@ class ASLTransformer(VideoTransformerBase):
             gray = cv2.cvtColor(cropped_bgr, cv2.COLOR_BGR2GRAY)
             resized = cv2.resize(gray, (28, 28))
             proc = resized.astype(np.float32) / 255.0
-            # Make sure input shape matches model input
             proc = np.expand_dims(proc, axis=0)   # (1,28,28)
             proc = np.expand_dims(proc, axis=-1)  # (1,28,28,1)
             return proc
@@ -79,7 +77,6 @@ class ASLTransformer(VideoTransformerBase):
 
         if self.model_type == "tflite":
             try:
-                # Check if input tensor dtype matches model expected dtype
                 if proc.dtype != self.input_details[0]['dtype']:
                     proc = proc.astype(self.input_details[0]['dtype'])
                 self.interpreter.set_tensor(self.input_index, proc)
@@ -115,7 +112,6 @@ class ASLTransformer(VideoTransformerBase):
                     y_min = min(y_min, y_px)
                     y_max = max(y_max, y_px)
 
-                # Add padding safely
                 pad = int(0.12 * max(x_max - x_min, y_max - y_min)) + 10
                 x_min = max(0, x_min - pad)
                 x_max = min(w, x_max + pad)
@@ -127,7 +123,6 @@ class ASLTransformer(VideoTransformerBase):
 
                 label, conf = self.predict(proc)
 
-                
                 cv2.rectangle(img, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
                 label_text = f"{label} ({conf:.2f})"
                 text_pos = (x_min, max(20, y_min - 10))
@@ -137,14 +132,23 @@ class ASLTransformer(VideoTransformerBase):
 
         return av.VideoFrame.from_ndarray(img, format="bgr24")
 
-
 st.write("Click **Start** to open webcam (browser will ask for permission).")
 
-webrtc_ctx = webrtc_streamer(
-    key="aslr-webrtc-tf",
-    mode=WebRtcMode.SENDRECV,  
-    rtc_configuration=RTC_CONFIGURATION,
-    media_stream_constraints={"video": True, "audio": False},
-    video_transformer_factory=ASLTransformer,
-    async_processing=True,
-)
+webrtc_ctx = None
+
+try:
+    webrtc_ctx = webrtc_streamer(
+        key="aslr-webrtc-tf",
+        mode=WebRtcMode.SENDRECV,
+        rtc_configuration=RTC_CONFIGURATION,
+        media_stream_constraints={"video": True, "audio": False},
+        video_transformer_factory=ASLTransformer,
+        async_processing=True,
+    )
+except Exception as e:
+    st.error(f"WebRTC error: {e}")
+
+if webrtc_ctx is not None:
+    if st.button("Stop Webcam"):
+        webrtc_ctx.stop()
+        st.info("Webcam stopped.")
