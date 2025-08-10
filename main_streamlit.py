@@ -5,8 +5,7 @@ import mediapipe as mp
 import numpy as np
 import av
 from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, RTCConfiguration, WebRtcMode
-
-import tensorflow as tf  # full TF imported for TFLite interpreter
+import tensorflow as tf  # for TFLite interpreter
 
 st.set_page_config(page_title="ASL Real-time (webrtc + TensorFlow Lite)", layout="centered")
 st.title("ASL Recognition — Real-time (streamlit-webrtc + TensorFlow Lite)")
@@ -30,12 +29,14 @@ class ASLTransformer(VideoTransformerBase):
         if MODEL_PATH.lower().endswith(".tflite"):
             self.interpreter = tf.lite.Interpreter(model_path=MODEL_PATH)
             self.interpreter.allocate_tensors()
-            self.input_index = self.interpreter.get_input_details()[0]['index']
-            self.output_index = self.interpreter.get_output_details()[0]['index']
+            self.input_details = self.interpreter.get_input_details()
+            self.output_details = self.interpreter.get_output_details()
+            self.input_index = self.input_details[0]['index']
+            self.output_index = self.output_details[0]['index']
             self.model_type = "tflite"
             st.info("Using TFLite Interpreter for inference.")
         else:
-            st.error("This code only supports TFLite model for now.")
+            st.error("This code only supports TFLite models for now.")
             raise RuntimeError("Only TFLite model is supported in this code.")
 
         # Initialize MediaPipe Hands
@@ -49,17 +50,19 @@ class ASLTransformer(VideoTransformerBase):
         self.mp_drawing = mp.solutions.drawing_utils
 
     def preprocess_crop(self, cropped_bgr):
-        if cropped_bgr.size == 0:
+        if cropped_bgr is None or cropped_bgr.size == 0:
             return None
-        gray = cv2.cvtColor(cropped_bgr, cv2.COLOR_BGR2GRAY)
         try:
+            gray = cv2.cvtColor(cropped_bgr, cv2.COLOR_BGR2GRAY)
             resized = cv2.resize(gray, (28, 28))
-        except Exception:
+            proc = resized.astype(np.float32) / 255.0
+            # Make sure input shape matches model input
+            proc = np.expand_dims(proc, axis=0)   # (1,28,28)
+            proc = np.expand_dims(proc, axis=-1)  # (1,28,28,1)
+            return proc
+        except Exception as e:
+            print(f"Preprocessing error: {e}")
             return None
-        proc = resized.astype(np.float32) / 255.0
-        proc = np.expand_dims(proc, axis=0)    # (1,28,28)
-        proc = np.expand_dims(proc, axis=-1)   # (1,28,28,1)
-        return proc
 
     def predict(self, proc):
         if proc is None:
@@ -67,6 +70,9 @@ class ASLTransformer(VideoTransformerBase):
 
         if self.model_type == "tflite":
             try:
+                # Check if input tensor dtype matches model expected dtype
+                if proc.dtype != self.input_details[0]['dtype']:
+                    proc = proc.astype(self.input_details[0]['dtype'])
                 self.interpreter.set_tensor(self.input_index, proc)
                 self.interpreter.invoke()
                 out = self.interpreter.get_tensor(self.output_index)[0]
@@ -74,7 +80,8 @@ class ASLTransformer(VideoTransformerBase):
                 label = LETTER_LABELS[idx] if idx < len(LETTER_LABELS) else "?"
                 conf = float(np.max(out))
                 return label, conf
-            except Exception:
+            except Exception as e:
+                print(f"Prediction error: {e}")
                 return "?", 0.0
         else:
             return "?", 0.0
@@ -99,6 +106,7 @@ class ASLTransformer(VideoTransformerBase):
                     y_min = min(y_min, y_px)
                     y_max = max(y_max, y_px)
 
+                # Add padding safely
                 pad = int(0.12 * max(x_max - x_min, y_max - y_min)) + 10
                 x_min = max(0, x_min - pad)
                 x_max = min(w, x_max + pad)
@@ -110,6 +118,7 @@ class ASLTransformer(VideoTransformerBase):
 
                 label, conf = self.predict(proc)
 
+                # Draw bounding box and label
                 cv2.rectangle(img, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
                 label_text = f"{label} ({conf:.2f})"
                 text_pos = (x_min, max(20, y_min - 10))
@@ -130,4 +139,3 @@ webrtc_ctx = webrtc_streamer(
     video_transformer_factory=ASLTransformer,
     async_processing=False,
 )
-
