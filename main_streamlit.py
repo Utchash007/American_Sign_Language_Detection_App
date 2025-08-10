@@ -6,6 +6,8 @@ import numpy as np
 import av
 import os
 from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, RTCConfiguration
+os.environ["OPENCV_VIDEOIO_MSMF_ENABLE_HW_TRANSFORMS"] = "0"
+os.environ["OPENCV_OPENGL_ALWAYS_INDIRECT"] = "1"
 
 # Import TensorFlow (full TF as requested)
 import tensorflow as tf
