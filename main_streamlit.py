@@ -4,7 +4,7 @@ import cv2
 import mediapipe as mp
 import numpy as np
 import av
-from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, RTCConfiguration
+from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, RTCConfiguration, WebRtcMode
 
 import tensorflow as tf  # full TF imported for TFLite interpreter
 
@@ -124,9 +124,10 @@ st.write("Click **Start** to open webcam (browser will ask for permission).")
 
 webrtc_ctx = webrtc_streamer(
     key="aslr-webrtc-tf",
-    mode="sendrecv",
+    mode=WebRtcMode.SENDRECV,  # <-- enum, NOT string
     rtc_configuration=RTC_CONFIGURATION,
     media_stream_constraints={"video": True, "audio": False},
     video_transformer_factory=ASLTransformer,
     async_processing=False,
 )
+
