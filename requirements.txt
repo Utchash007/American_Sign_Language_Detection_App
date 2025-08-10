@@ -1,7 +1,7 @@
 streamlit
 streamlit-webrtc
-aioice==0.8.1
-aiortc==1.5.1
+aioice
+aiortc
 mediapipe
 tensorflow
 opencv-python-headless
